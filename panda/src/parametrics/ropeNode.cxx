@@ -291,6 +291,68 @@ do_recompute_bounds(const NodePath &rel_to, int pipeline_stage,
 }
 
 /**
+ * Generates a GeomNode that renders the rope geometry.
+ */
+PT(PandaNode) RopeNode::
+generate(const NodePath &rel_to) {
+  PT(GeomNode) gnode = new GeomNode(get_name());
+
+  NurbsCurveEvaluator *curve = get_curve();
+  PT(NurbsCurveResult) result;
+  // this_node_path = NodePath((PandaNode *)this);
+  if (curve != nullptr) {
+    if (has_matrix()) {
+      result = curve->evaluate(rel_to, get_matrix());
+    } else {
+      result = curve->evaluate(rel_to);
+    }
+  }
+
+  CurveSegments curve_segments;
+  int num_curve_verts = get_connected_segments(curve_segments, result);
+
+  // Now, we build up a table of vertices, in a series of rings around the
+  // circumference of the tube.
+
+  int num_slices = get_num_slices();
+  int num_verts_per_slice;
+
+  PT(GeomVertexData) vdata = new GeomVertexData
+    ("rope", get_format(true), Geom::UH_stream);
+
+  compute_tube_vertices(vdata, num_verts_per_slice,
+                        curve_segments, num_curve_verts, result);
+
+  // Finally, go through and build up the index array, to tie all the triangle
+  // strips together.  This is difficult to pre-calculate the number of
+  // vertices we'll use, so we'll just let it dynamically allocate.
+  PT(GeomTristrips) strip = new GeomTristrips(Geom::UH_stream);
+  int vi = 0;
+  CurveSegments::const_iterator si;
+  for (si = curve_segments.begin(); si != curve_segments.end(); ++si) {
+    const CurveSegment &segment = (*si);
+
+    for (int s = 0; s < num_slices; ++s) {
+      int s1 = (s + 1) % num_verts_per_slice;
+
+      for (size_t j = 0; j < segment.size(); ++j) {
+        strip->add_vertex((vi + j) * num_verts_per_slice + s);
+        strip->add_vertex((vi + j) * num_verts_per_slice + s1);
+      }
+
+      strip->close_primitive();
+    }
+    vi += (int)segment.size();
+  }
+
+  PT(Geom) geom = new Geom(vdata);
+  geom->add_primitive(strip);
+
+  gnode->add_geom(geom);
+  return gnode;
+}
+
+/**
  * Draws the rope in RM_thread mode.  This uses a GeomLinestrip to draw the
  * rope in the simplest possible method, generally resulting in a one-pixel-
  * wide curve.

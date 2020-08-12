@@ -136,6 +136,8 @@ PUBLISHED:
 
   void reset_bound(const NodePath &rel_to);
 
+  PT(PandaNode) generate(const NodePath &rel_to);
+
 PUBLISHED:
   MAKE_PROPERTY(curve, get_curve, set_curve);
   MAKE_PROPERTY(render_mode, get_render_mode, set_render_mode);

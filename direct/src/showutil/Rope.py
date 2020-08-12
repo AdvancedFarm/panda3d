@@ -23,6 +23,9 @@ class Rope(NodePath):
         self.verts = []
         self.knots = None
 
+    def generate(self):
+        return self.ropeNode.generate(self)
+
     def setup(self, order, verts, knots = None):
         """This must be called to define the shape of the curve
         initially, and may be called again as needed to adjust the
